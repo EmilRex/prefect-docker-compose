@@ -1,0 +1,70 @@
+version: "3.4"
+name: prefect
+
+x-prefect-common: &prefect-common
+    build:
+        context: .
+    networks:
+        - prefect
+    restart: always
+
+services:
+    server:
+        <<: *prefect-common
+        command: prefect server start --host server --port 4200
+        depends_on:
+            - database
+        environment:
+            PREFECT_API_DATABASE_CONNECTION_URL: "postgresql+asyncpg://postgres:postgres@database:5432/prefect"
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://server:4200/api/health"]
+            start_interval: 5s
+            start_period: 15s
+        ports:
+            - "127.0.0.1:4200:4200"
+
+    docker-worker:
+        <<: *prefect-common
+        command: prefect worker start --with-healthcheck --pool docker --type docker
+        depends_on:
+            server:
+                condition: service_healthy
+        environment:
+            PREFECT_API_URL: "http://server:4200/api"
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://0.0.0.0:8080/health"]
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+
+    process-worker:
+        <<: *prefect-common
+        command: prefect worker start --with-healthcheck --pool process --type process
+        depends_on:
+            server:
+                condition: service_healthy
+        environment:
+            PREFECT_API_URL: "http://server:4200/api"
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://0.0.0.0:8080/health"]
+
+    database:
+        image: postgres:latest
+        environment:
+            - POSTGRES_USER=postgres
+            - POSTGRES_PASSWORD=postgres
+            - POSTGRES_DB=prefect
+        expose:
+            - 5432
+        networks:
+            - prefect
+        restart: always
+        volumes:
+            - db:/var/lib/postgresql/data
+
+volumes:
+    db:
+        name: prefect-db
+
+networks:
+    prefect:
+        name: prefect

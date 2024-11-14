@@ -1,19 +1,11 @@
 """A simple flow that says hello"""
 
-from prefect import flow, task, tags, get_run_logger
-
-
-@task
-def say_hello(name: str) -> None:
-    get_run_logger().info(f"Hello {name}")
-    return name
+from prefect import flow, tags, get_run_logger
 
 
 @flow
 def hello(name: str = "Marvin") -> None:
-
-    res = say_hello(name)
-    say_hello(name)
+    get_run_logger().info(f"Hello {name}")
 
 
 if __name__ == "__main__":

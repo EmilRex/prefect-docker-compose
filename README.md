@@ -16,4 +16,7 @@ open http://127.0.0.1:4200/
 
 # Deploy the flows
 python deploy.py
+
+# To follow the worker logs
+docker compose logs -f process-worker docker-worker
 ```
